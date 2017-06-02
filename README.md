@@ -1,82 +1,78 @@
+s2i-ocaml-builder
+=================
 
-# Creating a basic S2I builder image  
+This is a first attempt at dockerizing OCaml application using [Openshift's source-to-image](https://github.com/openshift/source-to-image) tool.
 
-## Getting started  
+## Disclaimer
 
-### Files and Directories  
-| File                   | Required? | Description                                                  |
-|------------------------|-----------|--------------------------------------------------------------|
-| Dockerfile             | Yes       | Defines the base builder image                               |
-| s2i/bin/assemble       | Yes       | Script that builds the application                           |
-| s2i/bin/usage          | No        | Script that prints the usage of the builder                  |
-| s2i/bin/run            | Yes       | Script that runs the application                             |
-| s2i/bin/save-artifacts | No        | Script for incremental builds that saves the built artifacts |
-| test/run               | No        | Test script for the builder image                            |
-| test/test-app          | Yes       | Test application source code                                 |
+This tool is far from being usable at all. However, I hope to make it better and better by improving my understanding of Docker and of OCaml packaging and building processes.
 
-#### Dockerfile
-Create a *Dockerfile* that installs all of the necessary tools and libraries that are needed to build and run our application.  This file will also handle copying the s2i scripts into the created image.
+## Requirements
 
-#### S2I scripts
+Building the `s2i-ocaml-builder` requires [Docker](https://www.docker.com/).
 
-##### assemble
-Create an *assemble* script that will build our application, e.g.:
-- build python modules
-- bundle install ruby gems
-- setup application specific configuration
+Using `s2i-ocaml-builder` to build application images requires `s2i`. Refer to s2i [installation instructions](https://github.com/openshift/source-to-image#installation).
 
-The script can also specify a way to restore any saved artifacts from the previous image.   
+## Installation
 
-##### run
-Create a *run* script that will start the application. 
+### Building `s2i-ocaml-builder`
 
-##### save-artifacts (optional)
-Create a *save-artifacts* script which allows a new build to reuse content from a previous version of the application image.
+Clone this repository and `cd` into it.
 
-##### usage (optional) 
-Create a *usage* script that will print out instructions on how to use the image.
+    $ git clone https://github.com/Richard-Degenne/s2i-ocaml-builder
+    $ cd s2i-ocaml-builder
 
-##### Make the scripts executable 
-Make sure that all of the scripts are executable by running *chmod +x s2i/bin/**
+Then, build the `s2i-ocaml-builder` image with
 
-#### Create the builder image
-The following command will create a builder image named s2i-ocaml-builder based on the Dockerfile that was created previously.
-```
-docker build -t s2i-ocaml-builder .
-```
-The builder image can also be created by using the *make* command since a *Makefile* is included.
+    $ docker build -t s2i-ocaml-builder .
 
-Once the image has finished building, the command *s2i usage s2i-ocaml-builder* will print out the help info that was defined in the *usage* script.
+### Building an application image
 
-#### Testing the builder image
-The builder image can be tested using the following commands:
-```
-docker build -t s2i-ocaml-builder-candidate .
-IMAGE_NAME=s2i-ocaml-builder-candidate test/run
-```
-The builder image can also be tested by using the *make test* command since a *Makefile* is included.
+*This exemple uses a very simple [echo server](https://github.com/Richard-Degenne/echo-server). Feel free to follow along by cloning it.*
 
-#### Creating the application image
-The application image combines the builder image with your applications source code, which is served using whatever application is installed via the *Dockerfile*, compiled using the *assemble* script, and run using the *run* script.
-The following command will create the application image:
-```
-s2i build test/test-app s2i-ocaml-builder s2i-ocaml-builder-app
----> Building and installing application from source...
-```
-Using the logic defined in the *assemble* script, s2i will now create an application image using the builder image as a base and including the source code from the test/test-app directory. 
+The image uses the OPAM metadata to build the application. Make sure your project has a valid OPAM file.
 
-#### Running the application image
-Running the application image is as simple as invoking the docker run command:
-```
-docker run -d -p 8080:8080 s2i-ocaml-builder-app
-```
-The application, which consists of a simple static web page, should now be accessible at  [http://localhost:8080](http://localhost:8080).
+To build the application image, run the following
 
-#### Using the saved artifacts script
-Rebuilding the application using the saved artifacts can be accomplished using the following command:
-```
-s2i build --incremental=true test/test-app nginx-centos7 nginx-app
----> Restoring build artifacts...
----> Building and installing application from source...
-```
-This will run the *save-artifacts* script which includes the custom code to backup the currently running application source, rebuild the application image, and then re-deploy the previously saved source using the *assemble* script.
+    $ s2i build . s2i-ocaml-builder echo-server:test -e PACKAGE_NAME=echo-server
+
+- `echo-server:test` is the name/tag of the image that will be produced.
+- `PACKAGE_NAME` is an environment variable sent to the builder image. It is necessary for it to locate the OPAM file.
+
+The only condition for the container to start properly is to have OPAM install an executable named `run` that will start your application.
+
+#### Running an application image
+
+To run the built application, spawn a container using the target image and publish needed port(s).
+
+    $ docker run -d -p5000:5000 echo-server
+
+### Further documentation
+
+S2I's default documentation is available in [S2I_README.md](S2I_README.md).
+
+## Todo list
+
+### Reduce the application image size
+
+The resulting image is **fat**. This is because the whole build environment is embedded in it.
+
+In a compiled language such as OCaml, it is primordial that the build environment is different form the run environment. However, this doesn't seem to be a trivial use-case for `s2i`, so I'll leave it for later.
+
+### Make the running process more generic
+
+Imposing an executable name on the developer's side is a hassle. Find a way to make this more generic, maybe using a `Procfile` of some sort.
+
+Besides, I believe it makes it impossible to give the run command parameters.
+
+### Reduce logging
+
+For the time being, all commands outputs the default flow of information to `stdout`, which isn't very relevant in an non-interactive context such as here.
+
+On the other hand, concise logs will help troubleshooting and will make the whole thing look better.
+
+### Improve build workflow
+
+I'm very unfamiliar with OCaml build toolchains. I think there might a far better way of handling the build of the application. See [s2i/bin/assemble](s2i/bin/assemble).
+
+

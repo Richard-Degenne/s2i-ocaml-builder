@@ -17,15 +17,14 @@ MAINTAINER Richard Degenne <richdeg2@gmail.com>
 # TODO: Install required packages here:
 # RUN yum install -y ... && yum clean all -y
 
-RUN yum install -y ocaml && yum clean all -y
-RUN wget https://raw.github.com/ocaml/opam/master/shell/opam_installer.sh -O - | sh -s /usr/local/bin
+RUN wget -O /usr/bin/opam https://github.com/ocaml/opam/releases/download/2.0.0-beta3/opam-2.0.0-beta3-x86_64-Linux
+RUN chmod 755 /usr/bin/opam
 
 # This default user is created in the openshift/base-centos7 image
+RUN chown -R 1001:1001 /opt/app-root
 USER 1001
 
-RUN opam init -y --root=~/../.opam
-RUN eval `opam config env`
-RUN opam switch 4.04.1 -y
+RUN opam init -y
 RUN eval `opam config env`
 
 # TODO (optional): Copy the builder files into /opt/app-root
@@ -34,9 +33,6 @@ RUN eval `opam config env`
 # TODO: Copy the S2I scripts to /usr/libexec/s2i, since openshift/base-centos7 image
 # sets io.openshift.s2i.scripts-url label that way, or update that label
 COPY ./s2i/bin/ /usr/libexec/s2i
-
-# TODO: Drop the root user and make the content of /opt/app-root owned by user 1001
-# RUN chown -R 1001:1001 /opt/app-root
 
 # TODO: Set the default port for applications built using this image
 # EXPOSE 8080
