@@ -1,6 +1,6 @@
 
 # s2i-ocaml-builder
-FROM openshift/base-centos7
+FROM ocaml/opam:alpine
 
 # TODO: Put the maintainer name in the image metadata
 MAINTAINER Richard Degenne <richdeg2@gmail.com>
@@ -13,19 +13,14 @@ MAINTAINER Richard Degenne <richdeg2@gmail.com>
 #      io.k8s.display-name="builder x.y.z" \
 #      io.openshift.expose-services="8080:http" \
 #      io.openshift.tags="builder,x.y.z,etc."
+LABEL io.openshift.s2i.scripts-url=image:///usr/libexec/s2i
 
 # TODO: Install required packages here:
 # RUN yum install -y ... && yum clean all -y
 
-RUN wget -O /usr/bin/opam https://github.com/ocaml/opam/releases/download/2.0.0-beta3/opam-2.0.0-beta3-x86_64-Linux
-RUN chmod 755 /usr/bin/opam
+USER opam
 
-# This default user is created in the openshift/base-centos7 image
-RUN chown -R 1001:1001 /opt/app-root
-USER 1001
-
-RUN opam init -y
-RUN eval `opam config env`
+RUN sudo apk add m4
 RUN opam install jbuilder core -y
 
 # TODO (optional): Copy the builder files into /opt/app-root
