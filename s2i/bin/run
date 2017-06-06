@@ -1,4 +1,4 @@
-#!/bin/bash -e
+#!/bin/sh -e
 #
 # S2I run script for the 's2i-ocaml-builder' image.
 # The run script executes the server that runs your application.
@@ -7,5 +7,4 @@
 #	https://github.com/openshift/source-to-image/blob/master/docs/builder_image.md
 #
 
-eval `opam config env`
-run
+./run
